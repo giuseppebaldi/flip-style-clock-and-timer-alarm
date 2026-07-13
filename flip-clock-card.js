@@ -1392,9 +1392,9 @@ class FlipClockCard extends HTMLElement {
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "flip-clock-card",
-    name: "Flip Clock Card",
+    name: "Flip Style Clock and Timer/Alarm",
     preview: true,
-    description: "A retro-style flip clock card with 3D animations"
+    description: "A retro-style flip clock, timer, and alarm card with 3D animations"
 });
 
 class FlipClockCardEditor extends HTMLElement {

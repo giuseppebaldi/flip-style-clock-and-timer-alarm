@@ -1,7 +1,7 @@
-# Flip Clock Card 
+# Flip Style Clock and Timer/Alarm
 ![Preview card](./img/flipfalp.jpg)
 
-A retro-style Flip Clock card for Home Assistant with realistic 3D flip animations inspired by split-flap displays.
+A retro-style Flip Clock, Timer and Alarm card for Home Assistant with realistic 3D flip animations inspired by split-flap displays.
 
 ![Preview card](./img/flipconf.jpg)
 
@@ -60,7 +60,7 @@ This card features a smooth 3D flip-down animation with a satisfying bounce effe
 1. Open **HACS** in your Home Assistant
 2. Go to **Frontend** section
 3. Click the **3 dots menu** (top right) → **Custom repositories**
-4. Paste this repository URL: `https://github.com/yourusername/lovelace-flip-clock-card`
+4. Paste this repository URL: `https://github.com/giuseppebaldi/flip-style-clock-and-timer-alarm`
 5. Select **Lovelace** as the category
 6. Click **Add**, then click **Install**
 7. Restart Home Assistant
