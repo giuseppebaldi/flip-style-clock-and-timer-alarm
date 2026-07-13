@@ -1,7 +1,7 @@
-# Flip Style Clock and Timer/Alarm
+# Flip Style Clock & Timer/Alarm Card
 ![Preview card](./img/flipfalp.jpg)
 
-A retro-style Flip Clock, Timer and Alarm card for Home Assistant with realistic 3D flip animations inspired by split-flap displays.
+A retro-style Flip Style Clock & Timer/Alarm Card for Home Assistant with realistic 3D flip animations inspired by split-flap displays.
 
 ![Preview card](./img/flipconf.jpg)
 
@@ -108,7 +108,7 @@ The card fully supports the Lovelace Visual Editor. Configure all options direct
 #### Quick Start Example
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 100
 time_format: '24'
 show_seconds: true
@@ -123,7 +123,7 @@ theme: classic
 
 | Parameter | Type | Default | Range/Options | Description |
 |-----------|------|---------|---------------|-------------|
-| `type` | string | **required** | `custom:flip-clock-card` | Card type identifier |
+| `type` | string | **required** | `custom:flip-style-clock-and-timer-alarm-card` | Card type identifier |
 | `entity` | string | `null` | E.g. `timer.kitchen_timer`, `sensor.next_alarm`, `input_datetime.alarm` | Optional target entity to track. If specified, the card operates in countdown timer/alarm mode instead of clock mode. |
 | `duration` | string | `null` | E.g. `00:05:00` | Optional fallback or idle duration (HH:MM:SS format) to display when a timer is idle/not running. |
 | `size` | number | `100` | `10-500` | Height of each flip tile in pixels |
@@ -168,7 +168,7 @@ theme: classic
 Simple clock with default settings:
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 100
 time_format: '24'
 show_seconds: false
@@ -180,7 +180,7 @@ theme: classic
 Display time in a specific timezone with a label:
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 timezone: 'America/New_York'
 show_label: true
@@ -214,7 +214,7 @@ timezone:
 ### 3. 12-Hour Format with AM/PM Indicator
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 time_format: '12'
 show_seconds: true
@@ -244,7 +244,7 @@ theme: classic
 Displays a countdown for a Home Assistant entity (like a timer, sensor, or input_datetime) with split-flap animations:
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 entity: timer.kitchen_timer
 duration: '00:05:00'
 theme: neon
@@ -264,21 +264,21 @@ Display multiple timezones simultaneously:
 type: grid
 columns: 3
 cards:
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     timezone: 'Europe/Warsaw'
     custom_label: 'Polska'
     show_label: true
     label_position: 'bottom'
     theme: classic
     size: 80
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     timezone: 'America/New_York'
     custom_label: 'NYC'
     show_label: true
     label_position: 'bottom'
     theme: ios-dark
     size: 80
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     timezone: 'Asia/Tokyo'
     custom_label: 'JST'
     show_label: true
@@ -290,7 +290,7 @@ cards:
 ### 6. Custom Animation Speed
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 animation_speed: 0.8
 show_seconds: true
@@ -350,7 +350,7 @@ theme: 'classic'
 
 **iOS Dark:**
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 130
 theme: ios-dark
 show_seconds: true
@@ -359,7 +359,7 @@ animation_speed: 0.5
 
 **Neon:**
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 110
 theme: neon
 show_seconds: true
@@ -368,7 +368,7 @@ animation_speed: 0.4
 
 **Borg:**
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 theme: borg
 show_seconds: true
@@ -402,7 +402,7 @@ Override any theme properties using the `custom_style` object. You can use any t
 **Yellow Glow Effect:**
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 theme: classic
 custom_style:
@@ -414,7 +414,7 @@ custom_style:
 **Custom E-Ink Style:**
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 100
 theme: e-ink
 custom_style:
@@ -427,7 +427,7 @@ custom_style:
 **Blue Neon Effect:**
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 theme: neon
 custom_style:
@@ -445,7 +445,7 @@ custom_style:
 Large, elegant clock for wall-mounted tablets:
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 160
 time_format: '24'
 show_seconds: true
@@ -460,7 +460,7 @@ Display multiple timezones with different themes:
 ```yaml
 type: vertical-stack
 cards:
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     size: 140
     timezone: 'UTC'
     custom_label: 'UTC'
@@ -468,7 +468,7 @@ cards:
     label_position: 'top'
     theme: aviator
     show_seconds: true
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     size: 140
     timezone: 'America/New_York'
     custom_label: 'New York'
@@ -476,7 +476,7 @@ cards:
     label_position: 'top'
     theme: ios-dark
     show_seconds: true
-  - type: custom:flip-clock-card
+  - type: custom:flip-style-clock-and-timer-alarm-card
     size: 140
     timezone: 'Asia/Tokyo'
     custom_label: 'Tokyo'
@@ -491,7 +491,7 @@ cards:
 Retro 80s style with custom animations:
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 140
 time_format: '12'
 show_seconds: true
@@ -511,7 +511,7 @@ Complete list of all available parameters with types, defaults, and valid ranges
 ### Basic Parameters
 
 ```yaml
-type: custom:flip-clock-card           # Required - Card type identifier
+type: custom:flip-style-clock-and-timer-alarm-card           # Required - Card type identifier
 size: 100                               # Default: 100, Range: 10-500 (pixels)
 time_format: '24'                       # Default: '24', Options: '12', '24'
 show_seconds: false                     # Default: false, Type: boolean
@@ -561,7 +561,7 @@ custom_style:                           # Default: null, Type: object
 ### Complete Example with All Parameters
 
 ```yaml
-type: custom:flip-clock-card
+type: custom:flip-style-clock-and-timer-alarm-card
 size: 120
 time_format: '12'
 show_seconds: true

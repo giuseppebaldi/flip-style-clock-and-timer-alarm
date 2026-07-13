@@ -1384,15 +1384,15 @@ class FlipClockCard extends HTMLElement {
     }
 
     static getConfigElement() {
-        return document.createElement("flip-clock-card-editor");
+        return document.createElement("flip-style-clock-and-timer-alarm-card-editor");
     }
 }
 
 // Register the card for Lovelace
 window.customCards = window.customCards || [];
 window.customCards.push({
-    type: "flip-clock-card",
-    name: "Flip Style Clock and Timer/Alarm",
+    type: "flip-style-clock-and-timer-alarm-card",
+    name: "Flip Style Clock & Timer/Alarm Card",
     preview: true,
     description: "A retro-style flip clock, timer, and alarm card with 3D animations"
 });
@@ -1707,10 +1707,10 @@ class FlipClockCardEditor extends HTMLElement {
 
 // Prevent duplicate registration in Home Assistant 25.x
 // Check if custom elements are already defined before registering
-if (!customElements.get("flip-clock-card-editor")) {
-    customElements.define("flip-clock-card-editor", FlipClockCardEditor);
+if (!customElements.get("flip-style-clock-and-timer-alarm-card-editor")) {
+    customElements.define("flip-style-clock-and-timer-alarm-card-editor", FlipClockCardEditor);
 }
 
-if (!customElements.get('flip-clock-card')) {
-    customElements.define('flip-clock-card', FlipClockCard);
+if (!customElements.get('flip-style-clock-and-timer-alarm-card')) {
+    customElements.define('flip-style-clock-and-timer-alarm-card', FlipClockCard);
 }
