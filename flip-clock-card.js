@@ -850,8 +850,8 @@ class FlipClockCard extends HTMLElement {
 
             if (this.show_seconds) {
                 clockDigitsHtml += `
-                    <div class="separator">:</div>
-                    <div class="digit-group">
+                    <div class="separator" id="minute-second-separator">:</div>
+                    <div class="digit-group" id="second-group">
                         ${createDigitHtml('s1')}
                         ${createDigitHtml('s2')}
                     </div>
@@ -1058,6 +1058,12 @@ class FlipClockCard extends HTMLElement {
     }
 
     updateClock() {
+        if (this.show_seconds && this.shadowRoot) {
+            const sep = this.shadowRoot.getElementById('minute-second-separator');
+            const sec = this.shadowRoot.getElementById('second-group');
+            if (sep && sep.style.display === 'none') sep.style.display = '';
+            if (sec && sec.style.display === 'none') sec.style.display = '';
+        }
         try {
             const now = new Date();
             let h, m, s;
@@ -1179,21 +1185,46 @@ class FlipClockCard extends HTMLElement {
         const minutes = Math.floor((remainingSeconds % 3600) / 60);
         const seconds = remainingSeconds % 60;
         
-        // Cap hours at 99 to fit in 2 digits
-        const cappedHours = Math.min(hours, 99);
-        
-        const hStr = String(cappedHours).padStart(2, '0');
-        const mStr = String(minutes).padStart(2, '0');
-        const sStr = String(seconds).padStart(2, '0');
-        
-        this.updateDigit('h1', hStr[0]);
-        this.updateDigit('h2', hStr[1]);
-        this.updateDigit('m1', mStr[0]);
-        this.updateDigit('m2', mStr[1]);
+        if (hours === 0) {
+            // Under 1 hour: display MM:SS
+            // If show_seconds is enabled, hide the extra seconds rotors so we show a 4-digit MM:SS display
+            if (this.show_seconds && this.shadowRoot) {
+                const sep = this.shadowRoot.getElementById('minute-second-separator');
+                const sec = this.shadowRoot.getElementById('second-group');
+                if (sep && sep.style.display !== 'none') sep.style.display = 'none';
+                if (sec && sec.style.display !== 'none') sec.style.display = 'none';
+            }
+            
+            const mStr = String(minutes).padStart(2, '0');
+            const sStr = String(seconds).padStart(2, '0');
+            
+            this.updateDigit('h1', mStr[0]);
+            this.updateDigit('h2', mStr[1]);
+            this.updateDigit('m1', sStr[0]);
+            this.updateDigit('m2', sStr[1]);
+        } else {
+            // 1 hour or more: display HH:MM (and optionally SS if show_seconds is true)
+            if (this.show_seconds && this.shadowRoot) {
+                const sep = this.shadowRoot.getElementById('minute-second-separator');
+                const sec = this.shadowRoot.getElementById('second-group');
+                if (sep && sep.style.display === 'none') sep.style.display = '';
+                if (sec && sec.style.display === 'none') sec.style.display = '';
+            }
+            
+            const cappedHours = Math.min(hours, 99);
+            const hStr = String(cappedHours).padStart(2, '0');
+            const mStr = String(minutes).padStart(2, '0');
+            const sStr = String(seconds).padStart(2, '0');
+            
+            this.updateDigit('h1', hStr[0]);
+            this.updateDigit('h2', hStr[1]);
+            this.updateDigit('m1', mStr[0]);
+            this.updateDigit('m2', mStr[1]);
 
-        if (this.show_seconds) {
-            this.updateDigit('s1', sStr[0]);
-            this.updateDigit('s2', sStr[1]);
+            if (this.show_seconds) {
+                this.updateDigit('s1', sStr[0]);
+                this.updateDigit('s2', sStr[1]);
+            }
         }
     }
 
