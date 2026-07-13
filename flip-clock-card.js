@@ -24,7 +24,89 @@ class FlipClockCard extends HTMLElement {
         this.currentDigits = { h1: null, h2: null, m1: null, m2: null, s1: null, s2: null };
         this.debug = false; // Set to true for development debugging
         this.digitElementsCache = {}; // Cache for DOM elements to avoid repeated queries
-        this.version = '26.5.3';
+        this.version = '26.6.0';
+        this._hass = null;
+        this._lastEntityState = null;
+        this._lastFinishesAt = null;
+    }
+
+    set hass(hass) {
+        this._hass = hass;
+        
+        // If we are in countdown mode, we want to react immediately to entity state changes
+        if (this.config && this.config.entity) {
+            const entityId = this.config.entity;
+            const oldState = this._lastEntityState;
+            const newStateObj = hass.states[entityId];
+            const newState = newStateObj ? newStateObj.state : undefined;
+            const newFinishesAt = newStateObj && newStateObj.attributes ? newStateObj.attributes.finishes_at : undefined;
+            
+            if (oldState !== newState || this._lastFinishesAt !== newFinishesAt) {
+                this._lastEntityState = newState;
+                this._lastFinishesAt = newFinishesAt;
+                
+                // Trigger immediate update
+                try {
+                    this.updateCountdown();
+                } catch (error) {
+                    if (this.debug) {
+                        console.error("FlipClockCard: Error on hass update:", error);
+                    }
+                }
+            }
+        }
+    }
+
+    parseTimeToSeconds(timeStr) {
+        if (!timeStr || typeof timeStr !== 'string') return 0;
+        const parts = timeStr.split(':').map(Number);
+        if (parts.some(isNaN)) return 0;
+        if (parts.length === 3) {
+            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+            return parts[0] * 60 + parts[1];
+        } else if (parts.length === 1) {
+            return parts[0];
+        }
+        return 0;
+    }
+
+    parseDateTimeToMs(state, attributes) {
+        if (!state || state === 'unknown' || state === 'unavailable') return null;
+        
+        if (state.includes('-')) {
+            const sanitized = state.replace(' ', 'T');
+            const date = new Date(sanitized);
+            if (!isNaN(date.getTime())) {
+                return date.getTime();
+            }
+        }
+        
+        if (state.includes(':')) {
+            const parts = state.split(':').map(Number);
+            if (parts.length >= 2 && !parts.some(isNaN)) {
+                const now = new Date();
+                const target = new Date();
+                target.setHours(parts[0] || 0);
+                target.setMinutes(parts[1] || 0);
+                target.setSeconds(parts[2] || 0);
+                target.setMilliseconds(0);
+                
+                if (target.getTime() <= now.getTime()) {
+                    target.setDate(target.getDate() + 1);
+                }
+                return target.getTime();
+            }
+        }
+        
+        if (attributes && attributes.timestamp) {
+            const ts = Number(attributes.timestamp);
+            if (!isNaN(ts)) {
+                return ts < 10000000000 ? ts * 1000 : ts;
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -155,6 +237,12 @@ class FlipClockCard extends HTMLElement {
             // Configuration parameters with validation
             this.config = config || {};
             
+            // Validate entity
+            this.entity = config?.entity || null;
+            
+            // Validate duration (fallback/idle duration)
+            this.duration = config?.duration || null;
+            
             // Validate and sanitize size (10-500px range)
             this.card_size = this.validateNumber(config?.size, 10, 500, 100);
             
@@ -192,8 +280,8 @@ class FlipClockCard extends HTMLElement {
             // Validate custom_label
             this.custom_label = config?.custom_label ? this.sanitizeText(config.custom_label) : null;
 
-            // Validate am_pm_indicator (boolean) - Only relevant if time_format is 12
-            this.am_pm_indicator = (config?.am_pm_indicator === true || config?.am_pm_indicator === 'true') && this.time_format === '12';
+            // Validate am_pm_indicator (boolean) - Only relevant if time_format is 12 and no entity is set
+            this.am_pm_indicator = (config?.am_pm_indicator === true || config?.am_pm_indicator === 'true') && this.time_format === '12' && !this.entity;
 
             // Validate am_pm_position
             const validAmPmPositions = ['top', 'bottom', 'left', 'right', 'right-top', 'right-bottom', 'between'];
@@ -230,15 +318,28 @@ class FlipClockCard extends HTMLElement {
                 this.digitElementsCache = {};
                 // Reset current digits state to force re-render of correct values
                 this.currentDigits = { h1: null, h2: null, m1: null, m2: null, s1: null, s2: null };
+                // Reset entity states
+                this._lastEntityState = null;
+                this._lastFinishesAt = null;
                 // Stop observer and timer if reconfiguring the card
                 if (this.observer) this.observer.disconnect();
+                this.observer = null;
                 if (this.timer) clearInterval(this.timer);
                 this.timer = null;
             }
             
             this.render();
+
+            // Re-connect observer if already in DOM
+            if (this.isConnected) {
+                this.connectedCallback();
+            }
         } catch (error) {
             // Fallback to safe defaults on error
+            this.entity = null;
+            this.duration = null;
+            this._lastEntityState = null;
+            this._lastFinishesAt = null;
             this.card_size = 100;
             this.time_format = '24';
             this.show_seconds = false;
@@ -931,78 +1032,14 @@ class FlipClockCard extends HTMLElement {
 
         const update = () => {
             try {
-                const now = new Date();
-                let h, m, s;
-
-                // Use timezone if specified, otherwise local time
-                if (this.timezone) {
-                    // Use specified timezone
-                    try {
-                        const formatter = new Intl.DateTimeFormat('en-US', {
-                            timeZone: this.timezone,
-                            hour: 'numeric',
-                            minute: 'numeric',
-                            second: 'numeric',
-                            hour12: false
-                        });
-                        const parts = formatter.formatToParts(now);
-                        h = parseInt(parts.find(p => p.type === 'hour').value);
-                        m = parseInt(parts.find(p => p.type === 'minute').value);
-                        s = parseInt(parts.find(p => p.type === 'second').value);
-                    } catch (tzError) {
-                        // Fallback to local time if timezone is invalid
-                        if (this.debug) {
-                            console.error("FlipClockCard: Invalid timezone, falling back to local time:", tzError);
-                        }
-                        h = now.getHours();
-                        m = now.getMinutes();
-                        s = now.getSeconds();
-                    }
+                if (this.entity) {
+                    this.updateCountdown();
                 } else {
-                    h = now.getHours();
-                    m = now.getMinutes();
-                    s = now.getSeconds();
-                }
-
-                // 12-hour format logic
-                let isPm = false;
-                if (this.time_format === '12') {
-                    isPm = h >= 12;
-                    h = h % 12 || 12;
-                }
-
-                const hStr = String(h).padStart(2, '0');
-                const mStr = String(m).padStart(2, '0');
-                const sStr = String(s).padStart(2, '0');
-                
-                this.updateDigit('h1', hStr[0]);
-                this.updateDigit('h2', hStr[1]);
-                this.updateDigit('m1', mStr[0]);
-                this.updateDigit('m2', mStr[1]);
-
-                if (this.show_seconds) {
-                    this.updateDigit('s1', sStr[0]);
-                    this.updateDigit('s2', sStr[1]);
-                }
-
-                if (this.am_pm_indicator) {
-                    const amPmText = isPm ? 'PM' : 'AM';
-                    
-                    if (this.am_pm_style === 'flip') {
-                        this.updateDigit('ap1', amPmText[0]);
-                        this.updateDigit('ap2', amPmText[1]);
-                    } else {
-                        // Update text directly
-                         if (!this.shadowRoot) return;
-                         const textEl = this.shadowRoot.getElementById('ap-text');
-                         if (textEl && textEl.textContent !== amPmText) {
-                             textEl.textContent = amPmText;
-                         }
-                    }
+                    this.updateClock();
                 }
             } catch (error) {
                 if (this.debug) {
-                    console.error("FlipClockCard: Clock update error:", error);
+                    console.error("FlipClockCard: Update error:", error);
                 }
             }
         };
@@ -1017,6 +1054,146 @@ class FlipClockCard extends HTMLElement {
             if (this.debug) {
                 console.error("FlipClockCard: Error starting clock:", error);
             }
+        }
+    }
+
+    updateClock() {
+        try {
+            const now = new Date();
+            let h, m, s;
+
+            // Use timezone if specified, otherwise local time
+            if (this.timezone) {
+                // Use specified timezone
+                try {
+                    const formatter = new Intl.DateTimeFormat('en-US', {
+                        timeZone: this.timezone,
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        second: 'numeric',
+                        hour12: false
+                    });
+                    const parts = formatter.formatToParts(now);
+                    h = parseInt(parts.find(p => p.type === 'hour').value);
+                    m = parseInt(parts.find(p => p.type === 'minute').value);
+                    s = parseInt(parts.find(p => p.type === 'second').value);
+                } catch (tzError) {
+                    // Fallback to local time if timezone is invalid
+                    if (this.debug) {
+                        console.error("FlipClockCard: Invalid timezone, falling back to local time:", tzError);
+                    }
+                    h = now.getHours();
+                    m = now.getMinutes();
+                    s = now.getSeconds();
+                }
+            } else {
+                h = now.getHours();
+                m = now.getMinutes();
+                s = now.getSeconds();
+            }
+
+            // 12-hour format logic
+            let isPm = false;
+            if (this.time_format === '12') {
+                isPm = h >= 12;
+                h = h % 12 || 12;
+            }
+
+            const hStr = String(h).padStart(2, '0');
+            const mStr = String(m).padStart(2, '0');
+            const sStr = String(s).padStart(2, '0');
+            
+            this.updateDigit('h1', hStr[0]);
+            this.updateDigit('h2', hStr[1]);
+            this.updateDigit('m1', mStr[0]);
+            this.updateDigit('m2', mStr[1]);
+
+            if (this.show_seconds) {
+                this.updateDigit('s1', sStr[0]);
+                this.updateDigit('s2', sStr[1]);
+            }
+
+            if (this.am_pm_indicator) {
+                const amPmText = isPm ? 'PM' : 'AM';
+                
+                if (this.am_pm_style === 'flip') {
+                    this.updateDigit('ap1', amPmText[0]);
+                    this.updateDigit('ap2', amPmText[1]);
+                } else {
+                    // Update text directly
+                     if (!this.shadowRoot) return;
+                     const textEl = this.shadowRoot.getElementById('ap-text');
+                     if (textEl && textEl.textContent !== amPmText) {
+                         textEl.textContent = amPmText;
+                     }
+                }
+            }
+        } catch (error) {
+            if (this.debug) {
+                console.error("FlipClockCard: Clock update error:", error);
+            }
+        }
+    }
+
+    updateCountdown() {
+        if (!this._hass) return;
+        
+        const entityId = this.entity;
+        const stateObj = this._hass.states[entityId];
+        
+        let remainingSeconds = 0;
+        
+        if (stateObj) {
+            const domain = entityId.split('.')[0];
+            const state = stateObj.state;
+            
+            if (domain === 'timer') {
+                if (state === 'active') {
+                    const finishesAt = stateObj.attributes.finishes_at;
+                    if (finishesAt) {
+                        const targetTime = new Date(finishesAt).getTime();
+                        const now = new Date().getTime();
+                        remainingSeconds = Math.max(0, Math.floor((targetTime - now) / 1000));
+                    }
+                } else if (state === 'paused') {
+                    remainingSeconds = this.parseTimeToSeconds(stateObj.attributes.remaining);
+                } else { // idle
+                    remainingSeconds = this.parseTimeToSeconds(this.duration || stateObj.attributes.duration);
+                }
+            } else {
+                // alarm, input_datetime, or sensor
+                const targetTimeMs = this.parseDateTimeToMs(state, stateObj.attributes);
+                if (targetTimeMs !== null) {
+                    const now = new Date().getTime();
+                    remainingSeconds = Math.max(0, Math.floor((targetTimeMs - now) / 1000));
+                } else {
+                    remainingSeconds = this.parseTimeToSeconds(this.duration);
+                }
+            }
+        } else {
+            // Entity not found / loaded yet
+            remainingSeconds = this.parseTimeToSeconds(this.duration);
+        }
+        
+        const hours = Math.floor(remainingSeconds / 3600);
+        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+        const seconds = remainingSeconds % 60;
+        
+        // Cap hours at 99 to fit in 2 digits
+        const cappedHours = Math.min(hours, 99);
+        
+        const hStr = String(cappedHours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        const sStr = String(seconds).padStart(2, '0');
+        
+        this.updateDigit('h1', hStr[0]);
+        this.updateDigit('h2', hStr[1]);
+        this.updateDigit('m1', mStr[0]);
+        this.updateDigit('m2', mStr[1]);
+
+        if (this.show_seconds) {
+            this.updateDigit('s1', sStr[0]);
+            this.updateDigit('s2', sStr[1]);
         }
     }
 
@@ -1185,6 +1362,8 @@ class FlipClockCard extends HTMLElement {
      */
     static getStubConfig() {
         return {
+            entity: null,
+            duration: null,
             size: 100,
             time_format: '24',
             show_seconds: false,
@@ -1219,6 +1398,10 @@ window.customCards.push({
 });
 
 class FlipClockCardEditor extends HTMLElement {
+    set hass(hass) {
+        this._hass = hass;
+    }
+
     setConfig(config) {
         // Clone config to avoid modifying the original frozen object
         this._config = { ...config };
@@ -1258,6 +1441,14 @@ class FlipClockCardEditor extends HTMLElement {
         this.innerHTML = `
             <div class="card-config">
                 <div class="option">
+                    <label class="label">Entity (Optional)</label>
+                    <input type="text" class="value" id="entity" value="${this._config.entity || ''}" placeholder="timer.kitchen_timer, sensor.next_alarm...">
+                </div>
+                <div class="option">
+                    <label class="label">Duration (Optional)</label>
+                    <input type="text" class="value" id="duration" value="${this._config.duration || ''}" placeholder="hh:mm:ss (for idle/fallback)">
+                </div>
+                <div class="option">
                     <label class="label">Theme</label>
                     <select class="value" id="theme">
                         <option value="classic" ${this._config.theme === 'classic' ? 'selected' : ''}>Classic</option>
@@ -1292,14 +1483,14 @@ class FlipClockCardEditor extends HTMLElement {
                     </select>
                 </div>
                 
-                ${this._config.time_format === '12' ? `
+                ${(this._config.time_format === '12' && !this._config.entity) ? `
                 <div class="option">
                     <label class="label">Show AM/PM</label>
                     <input type="checkbox" class="value" id="am_pm_indicator" ${this._config.am_pm_indicator ? 'checked' : ''}>
                 </div>
                 ` : ''}
 
-                ${this._config.time_format === '12' && this._config.am_pm_indicator ? `
+                ${(this._config.time_format === '12' && this._config.am_pm_indicator && !this._config.entity) ? `
                 <div class="option">
                     <label class="label">AM/PM Style</label>
                     <select class="value" id="am_pm_style">
@@ -1503,7 +1694,7 @@ class FlipClockCardEditor extends HTMLElement {
                         value = null;
                 }
 
-                if (prop === 'custom_label' && value === '') {
+                if ((prop === 'custom_label' || prop === 'entity' || prop === 'duration') && value === '') {
                     value = null;
                 }
 

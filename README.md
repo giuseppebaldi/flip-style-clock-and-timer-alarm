@@ -124,6 +124,8 @@ theme: classic
 | Parameter | Type | Default | Range/Options | Description |
 |-----------|------|---------|---------------|-------------|
 | `type` | string | **required** | `custom:flip-clock-card` | Card type identifier |
+| `entity` | string | `null` | E.g. `timer.kitchen_timer`, `sensor.next_alarm`, `input_datetime.alarm` | Optional target entity to track. If specified, the card operates in countdown timer/alarm mode instead of clock mode. |
+| `duration` | string | `null` | E.g. `00:05:00` | Optional fallback or idle duration (HH:MM:SS format) to display when a timer is idle/not running. |
 | `size` | number | `100` | `10-500` | Height of each flip tile in pixels |
 | `time_format` | string | `'24'` | `'12'`, `'24'` | 12-hour or 24-hour time format |
 | `show_seconds` | boolean | `false` | `true`, `false` | Display seconds |
@@ -237,7 +239,24 @@ theme: classic
 - `flip` - Animated flip tiles (default)
 - `text` - Static text display
 
-### 4. Multiple Timezones Grid
+### 4. Countdown Timer / Alarm Mode
+
+Displays a countdown for a Home Assistant entity (like a timer, sensor, or input_datetime) with split-flap animations:
+
+```yaml
+type: custom:flip-clock-card
+entity: timer.kitchen_timer
+duration: '00:05:00'
+theme: neon
+show_seconds: true
+show_label: true
+```
+
+* **Timer Entities**: Tracks `active` running state, `paused` state, and falls back to configured `duration` or default duration when `idle`.
+* **Datetime/Sensor Entities**: Computes remaining time to the target timestamp (counts down to zero). For time-only input_datetimes (such as a daily alarm), it automatically counts down to the next daily occurrence.
+* **Friendly Names**: When `show_label` is enabled, the card dynamically displays the entity's friendly name instead of the timezone.
+
+### 5. Multiple Timezones Grid
 
 Display multiple timezones simultaneously:
 
@@ -268,7 +287,7 @@ cards:
     size: 80
 ```
 
-### 5. Custom Animation Speed
+### 6. Custom Animation Speed
 
 ```yaml
 type: custom:flip-clock-card
